@@ -54,5 +54,9 @@ R_Program/.Rhistory
 
 # yaml files (credentials)
 *.yml
+
+# html files (markdown output)
 *.html
+
+# secrets
 secrets_key
