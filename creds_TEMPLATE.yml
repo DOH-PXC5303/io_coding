@@ -1,0 +1,18 @@
+# Default is needed to distinguish values.
+# Leave a blank line (NO SPACES) as the last line in this file or things will break
+# Quotes aren't necessary, but can be used.
+default: 
+  conn_list_wdrs:
+    Driver:
+    Server: 
+    Database: 
+    Trusted_connection: 
+    ApplicationIntent: 
+
+test:
+  conn_list_wdrs:
+    Driver:
+    Server: 
+    Database: 
+    Trusted_connection: 
+    ApplicationIntent: 
