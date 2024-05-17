@@ -47,3 +47,16 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+R_Program/.Rhistory
+
+# all csv files
+*.csv
+
+# yaml files (credentials)
+*.yml
+
+# html files (markdown output)
+*.html
+
+# secrets
+secrets_key

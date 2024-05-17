@@ -1,0 +1,109 @@
+---
+title: "Results"
+author: "r Sys.getenv('USERNAME')"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r import}
+library(dplyr)
+library(glue)
+library(data.table)
+```
+
+```{r read}
+before_filename <- list.files(path = './data/',
+                              pattern = '^coded_before_[0-9]{8}_[0-9]{8}.csv$',
+                              full.names = T)
+
+before = sort(before_filename, decreasing=T)[1]
+before_df <- fread(before) %>% 
+  select(CASE_ID,
+         NAICS_TITLE,
+         NAICS_PROB,
+         SOC_TITLE,
+         SOC_PROB)
+
+after_filename <- list.files(path = './data/',
+                             pattern = '^coded_io_[0-9]{8}_[0-9]{8}.csv$',
+                             full.names = T)
+
+after = sort(after_filename, decreasing=T)[1]
+after_df <- fread(after) %>% 
+  select(CASE_ID,
+         OCCUPATION,
+         OCCUPATION_BUSINESS_TYPE,
+         OCCUPATION_TYPE,
+         SPECIFIC_HEALTHCARE_FIELD_WORK,
+         WORK_NAME,
+         OCCUPATION_EMPLOYER,
+         age_years,
+         sex_at_birth,
+         AgeTest,
+         POSITIVE_DEFINING_LAB_DATE_SARS,
+         NAICS_TITLE2 = NAICS_TITLE,
+         NAICS_PROB2 = NAICS_PROB,
+         SOC_TITLE2 = SOC_TITLE,
+         SOC_PROB2 = SOC_PROB,
+         cleaned.OCCUPATION,
+         cleaned.WORK_NAME,                             
+         cleaned.OCCUPATION_BUSINESS_TYPE,
+         cleaned.OCCUPATION_EMPLOYER)
+```
+
+```{r transform}
+combined_df <- before_df %>% left_join(after_df)
+combined_df <- combined_df %>%  mutate(NAICS_PROB_cat1 = ifelse(NAICS_PROB >= 0 & NAICS_TITLE !="Insufficient Information", 1, 0),
+                                       SOC_PROB_cat1 = ifelse((SOC_PROB >= 0) & SOC_TITLE != "Insufficient Information", 1, 0),
+                                       NAICS_PROB_cat2 = ifelse(NAICS_PROB2 >= 0 & NAICS_TITLE2 !="Insufficient Information", 1, 0),
+                                       SOC_PROB_cat2 = ifelse(SOC_PROB2 >= 0 & SOC_TITLE2 !="Insufficient Information", 1, 0))
+```
+
+```{r total}
+### Get total # of rows in dataset
+n = nrow(combined_df)
+```
+
+```{r completeness}
+# Analyze completeness of dataset
+
+# Before enhancements
+comp_bef_i_count <- sum(combined_df$NAICS_PROB_cat1%in%1)
+comp_bef_i_prop <- comp_bef_i_count/n
+comp_bef_o_count <- sum(combined_df$SOC_PROB_cat1%in%1)
+comp_bef_o_prop <- comp_bef_o_count/n
+
+# After enhancements
+# Note we are counting "coded after enhancement" as having a code before OR after cleaning
+comp_aft_i_count <- sum(combined_df$NAICS_PROB_cat1%in%1 | combined_df$NAICS_PROB_cat2%in%1)
+comp_aft_i_prop <- comp_aft_i_count/n
+comp_aft_o_count <- sum(combined_df$SOC_PROB_cat1%in%1 | combined_df$SOC_PROB_cat2%in%1)
+comp_aft_o_prop <- comp_aft_o_count/n
+
+# Improvements
+improve_i_count <- comp_aft_i_count - comp_bef_i_count 
+improve_i_prop <- improve_i_count/n 
+improve_o_count <- comp_aft_o_count - comp_bef_o_count 
+improve_o_prop <- improve_o_count/n 
+
+# Build summary df
+data.frame('Initial Coding Rate' = c('Industry Codes'=glue("{format(comp_bef_i_count, big.mark = ',')} ({round(100*comp_bef_i_prop, digits=1)}%)"), 
+                                     'Ocupation Codes'=glue("{format(comp_bef_o_count, big.mark = ',')} ({round(100*comp_bef_o_prop, digits=1)}%)")), 
+           'After Enhancements' = c(glue("{format(comp_aft_i_count, big.mark = ',')} ({round(100*comp_aft_i_prop, digits=1)}%)"), 
+                                    glue("{format(comp_aft_o_count, big.mark = ',')} ({round(100*comp_aft_o_prop, digits=1)}%)")),
+           'Improvements' = c(glue("{format(improve_i_count, big.mark = ',')} ({round(100*improve_i_prop, digits=1)}%)"), 
+                              glue("{format(improve_o_count, big.mark = ',')} ({round(100*improve_o_prop, digits=1)}%)")))
+```
+
+```{r accuracy}
+# Analyze accuracy of added data
+
+accuracy_i <- combined_df %>% filter(NAICS_PROB_cat2%in%1 & NAICS_PROB_cat1%in%0)
+accuracy_o <- combined_df %>% filter(SOC_PROB_cat2%in%1 & SOC_PROB_cat1%in%0)
+table(accuracy_i$NAICS_PROB2 > 0.6)
+table(accuracy_o$SOC_PROB2 > 0.6)
+```
