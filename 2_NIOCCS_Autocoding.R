@@ -9,14 +9,14 @@
 ###				Data Support Team roster folder for import		
 ###  
 
-pacman::p_load(httr, # used with autocoding webservice
-               jsonlite, # used with autocoding webservice
-               dplyr, # used throughout script
-               data.table, # used to read and write data (fread & fwrite)
-               glue, # glue::glue() used throughout script
-               furrr, # used for multi-session processing with webservice
-               future # used for multi-session processing with webservice
-               )
+library(httr, # used with autocoding webservice
+        jsonlite, # used with autocoding webservice
+        dplyr, # used throughout script
+        data.table, # used to read and write data (fread & fwrite)
+        glue, # glue::glue() used throughout script
+        furrr, # used for multi-session processing with webservice
+        future # used for multi-session processing with webservice
+)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 ### Part 1: Import cleaned data ###################################################################################
