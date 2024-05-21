@@ -31,16 +31,14 @@ if(date_start > date_end) stop('date_start must be greater than or equal to date
 # Change dates as needed. Data will be filter to only include cases where 
 # POSITIVE_DEFINING_LAB_DATE_SARS is between these dates OR equal to either
 
-pacman::p_load(
-  odbc, # for wdrs query
-  DBI,  # for wdrs query
-  dplyr, # used throughout script
-  lubridate, # used for age calc
-  tidyr, # separate() used for data cleaning
-  data.table, # for writing csv
-  yaml, # for reading in credentials
-  glue # for building conn string
-)
+library(odbc) # for wdrs query
+library(DBI)  # for wdrs query
+library(dplyr) # used throughout script
+library(lubridate) # used for age calc
+library(tidyr) # separate() used for data cleaning
+library(data.table) # for writing csv
+library(yaml) # for reading in credentials
+library(glue) # for building conn string
 
 # Begin WDRS pull ---------------------------------------------------------------------------------------------
 message(paste('\n', 'Pulling WDRS data from', date_start, 'to', date_end, '\n\n')) #print days we are pulling
@@ -438,9 +436,9 @@ io_final <- io_final %>%
          cleaned.OCCUPATION_BUSINESS_TYPE =
            case_when(
              # Change OCCUPATION_BUSINESS_TYPE to ltcf for certain ltcf's:
-             grepl('north valley extended care', cleaned.OCCUPATION, ignore.case = T) ~ 'LONG TERM CARE FACILITY',
-             grepl('north valley extended care', cleaned.OCCUPATION_EMPLOYER, ignore.case = T) ~ 'LONG TERM CARE FACILITY',
-             grepl('north valley extended care', cleaned.OCCUPATION_BUSINESS_TYPE, ignore.case = T) ~ 'LONG TERM CARE FACILITY',
+             # sanitized string removed
+             # sanitized string removed
+             # sanitized string removed
              # add employer to occupation if RN
              startsWith(cleaned.OCCUPATION, 'Registered Nurse') & !is.na(cleaned.OCCUPATION_EMPLOYER) & !is.na(cleaned.OCCUPATION_BUSINESS_TYPE) ~ paste(cleaned.OCCUPATION_BUSINESS_TYPE, 'at', cleaned.OCCUPATION_EMPLOYER),
              # add school type (elementary, middle, high, etc.) to occupation if teacher
