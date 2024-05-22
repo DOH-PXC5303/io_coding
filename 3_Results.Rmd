@@ -13,6 +13,18 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(glue)
 library(data.table)
+
+# Function to convert codes, titles, and probs to NA if title is "Insufficient Information"
+insufficient_na <- function(df, code, title, prob) {
+  tf = !is.na(df[title])
+  tf[tf] = df[tf, title] == 'Insufficient Information'
+  
+  df[tf, title] = NA
+  df[tf, code] = NA
+  df[tf, prob] = NA
+  
+  return(df)
+}
 ```
 
 ```{r read}
@@ -21,11 +33,13 @@ before_filename <- list.files(path = './data/',
                               full.names = T)
 
 before = sort(before_filename, decreasing=T)[1]
-before_df <- fread(before) %>% 
+before_df <- fread(before, data.table=FALSE) %>% 
   select(CASE_ID,
          NAICS_TITLE,
+         NAICS_CODE,
          NAICS_PROB,
          SOC_TITLE,
+         SOC_CODE,
          SOC_PROB)
 
 after_filename <- list.files(path = './data/',
@@ -33,55 +47,51 @@ after_filename <- list.files(path = './data/',
                              full.names = T)
 
 after = sort(after_filename, decreasing=T)[1]
-after_df <- fread(after) %>% 
+after_df <- fread(after, data.table=FALSE) %>% 
   select(CASE_ID,
-         OCCUPATION,
-         OCCUPATION_BUSINESS_TYPE,
-         OCCUPATION_TYPE,
-         SPECIFIC_HEALTHCARE_FIELD_WORK,
-         WORK_NAME,
-         OCCUPATION_EMPLOYER,
-         age_years,
-         sex_at_birth,
-         AgeTest,
-         POSITIVE_DEFINING_LAB_DATE_SARS,
-         NAICS_TITLE2 = NAICS_TITLE,
-         NAICS_PROB2 = NAICS_PROB,
-         SOC_TITLE2 = SOC_TITLE,
-         SOC_PROB2 = SOC_PROB,
-         cleaned.OCCUPATION,
-         cleaned.WORK_NAME,                             
-         cleaned.OCCUPATION_BUSINESS_TYPE,
-         cleaned.OCCUPATION_EMPLOYER)
+         NAICS_TITLE,
+         NAICS_CODE,
+         NAICS_PROB,
+         SOC_TITLE,
+         SOC_CODE,
+         SOC_PROB
+  )
 ```
 
 ```{r transform}
-combined_df <- before_df %>% left_join(after_df)
-combined_df <- combined_df %>%  mutate(NAICS_PROB_cat1 = ifelse(NAICS_PROB >= 0 & NAICS_TITLE !="Insufficient Information", 1, 0),
-                                       SOC_PROB_cat1 = ifelse((SOC_PROB >= 0) & SOC_TITLE != "Insufficient Information", 1, 0),
-                                       NAICS_PROB_cat2 = ifelse(NAICS_PROB2 >= 0 & NAICS_TITLE2 !="Insufficient Information", 1, 0),
-                                       SOC_PROB_cat2 = ifelse(SOC_PROB2 >= 0 & SOC_TITLE2 !="Insufficient Information", 1, 0))
+comb_df <- before_df %>% 
+  full_join(after_df, by="CASE_ID", suffix=c("_bef", "_aft")) %>% 
+  insufficient_na("SOC_CODE_bef", "SOC_TITLE_bef", "SOC_PROB_bef") %>% 
+  insufficient_na("NAICS_CODE_bef", "NAICS_TITLE_bef", "NAICS_PROB_bef") %>% 
+  insufficient_na("SOC_CODE_aft", "SOC_TITLE_aft", "SOC_PROB_aft") %>% 
+  insufficient_na("NAICS_CODE_aft", "NAICS_TITLE_aft", "NAICS_PROB_aft") %>%
+  mutate(across(contains("_PROB_"), as.numeric)) %>% 
+  mutate(across(contains("_PROB_"), function(x) if_else(is.na(x), 0, x)))
+
+comb_df <- comb_df %>% mutate(NAICS_PROB_present_bef = NAICS_PROB_bef > 0,
+                              SOC_PROB_present_bef = SOC_PROB_bef > 0,
+                              NAICS_PROB_present_aft = NAICS_PROB_aft > 0,
+                              SOC_PROB_present_aft = SOC_PROB_aft > 0)
 ```
 
 ```{r total}
 ### Get total # of rows in dataset
-n = nrow(combined_df)
+n = nrow(comb_df)
 ```
 
 ```{r completeness}
 # Analyze completeness of dataset
 
 # Before enhancements
-comp_bef_i_count <- sum(combined_df$NAICS_PROB_cat1%in%1)
+comp_bef_i_count <- sum(comb_df$NAICS_PROB_present_bef)
 comp_bef_i_prop <- comp_bef_i_count/n
-comp_bef_o_count <- sum(combined_df$SOC_PROB_cat1%in%1)
+comp_bef_o_count <- sum(comb_df$SOC_PROB_present_bef)
 comp_bef_o_prop <- comp_bef_o_count/n
 
 # After enhancements
-# Note we are counting "coded after enhancement" as having a code before OR after cleaning
-comp_aft_i_count <- sum(combined_df$NAICS_PROB_cat1%in%1 | combined_df$NAICS_PROB_cat2%in%1)
+comp_aft_i_count <- sum(comb_df$NAICS_PROB_present_aft)
 comp_aft_i_prop <- comp_aft_i_count/n
-comp_aft_o_count <- sum(combined_df$SOC_PROB_cat1%in%1 | combined_df$SOC_PROB_cat2%in%1)
+comp_aft_o_count <- sum(comb_df$SOC_PROB_present_aft)
 comp_aft_o_prop <- comp_aft_o_count/n
 
 # Improvements
@@ -102,8 +112,8 @@ data.frame('Initial Coding Rate' = c('Industry Codes'=glue("{format(comp_bef_i_c
 ```{r accuracy}
 # Analyze accuracy of added data
 
-accuracy_i <- combined_df %>% filter(NAICS_PROB_cat2%in%1 & NAICS_PROB_cat1%in%0)
-accuracy_o <- combined_df %>% filter(SOC_PROB_cat2%in%1 & SOC_PROB_cat1%in%0)
-table(accuracy_i$NAICS_PROB2 > 0.6)
-table(accuracy_o$SOC_PROB2 > 0.6)
+accuracy_i <- comb_df %>% filter(NAICS_PROB_present_aft & !NAICS_PROB_present_bef)
+accuracy_o <- comb_df %>% filter(SOC_PROB_present_aft & !SOC_PROB_present_bef)
+table(accuracy_i$NAICS_PROB_aft > 0.6)
+table(accuracy_o$SOC_PROB_aft > 0.6)
 ```
