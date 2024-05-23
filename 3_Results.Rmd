@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(glue)
 library(data.table)
+library(ggplot2)
 
 # Function to convert codes, titles, and probs to NA if title is "Insufficient Information"
 insufficient_na <- function(df, code, title, prob) {
@@ -114,6 +115,42 @@ data.frame('Initial Coding Rate' = c('Industry Codes'=glue("{format(comp_bef_i_c
 
 accuracy_i <- comb_df %>% filter(NAICS_PROB_present_aft & !NAICS_PROB_present_bef)
 accuracy_o <- comb_df %>% filter(SOC_PROB_present_aft & !SOC_PROB_present_bef)
-table(accuracy_i$NAICS_PROB_aft > 0.6)
-table(accuracy_o$SOC_PROB_aft > 0.6)
+table(accuracy_i$NAICS_PROB_aft > 0.6)/nrow(accuracy_i)
+table(accuracy_o$SOC_PROB_aft > 0.6)/nrow(accuracy_o)
+```
+
+```{r visuals}
+# Industry hist
+histogram <- ggplot(accuracy_i, aes(x = NAICS_PROB_aft)) +
+  geom_histogram(breaks=seq(0,1,by=0.05), fill = "#DBE6EF", color = "#5084B3") +
+  geom_vline(xintercept = 0.6, color = "black", linetype = "dashed") +
+  labs(title = glue("Added Industry (n={nrow(accuracy_i)})"), x = "Probability", y = "Frequency", color='#5084B3') +
+  scale_x_continuous(limits=c(0,1), breaks = seq(0,1,by=0.2), expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme_minimal() + 
+  theme(text = element_text(colour = "#5084B3"),
+        axis.line.x = element_line(color="#5084B3"),
+        axis.line.y = element_line(color="#5084B3"),
+        axis.text.x = element_text(color="#5084B3"),
+        axis.text.y = element_text(color="#5084B3"))
+  
+# Print the histogram
+print(histogram)
+
+# Occ histogram
+histogram <- ggplot(accuracy_o, aes(x = SOC_PROB_aft)) +
+  geom_histogram(breaks=seq(0,1,by=0.05), fill = "#E0EAD9", color = "#92B579") +
+  geom_vline(xintercept = 0.6, color = "black", linetype = "dashed") +
+  labs(title = glue("Added Occupation (n={nrow(accuracy_o)})"), x = "Probability", y = "Frequency", color='#92B579') +
+  scale_x_continuous(limits=c(0,1), breaks = seq(0,1,by=0.2), expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme_minimal() + 
+  theme(text = element_text(colour = "#92B579"),
+        axis.line.x = element_line(color="#92B579"),
+        axis.line.y = element_line(color="#92B579"),
+        axis.text.x = element_text(color="#92B579"),
+        axis.text.y = element_text(color="#92B579"))
+
+# Print the histogram
+print(histogram)
 ```
